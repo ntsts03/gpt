@@ -1,8 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'api_key.dart' ;
-
+import 'api_key.dart';
 
 void main() {
   runApp(const MyApp());
@@ -34,8 +33,8 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  String? _apiText;
   String searchText = '';
+  List<Map<String, String>> chatHistory = [];
 
   @override
   void initState() {
@@ -56,15 +55,34 @@ class _MyHomePageState extends State<MyHomePage> {
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Builder(builder: (context) {
-                final text = _apiText;
-                if (text == null) {
+                if (chatHistory.isEmpty) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                return Text(
-                  text,
-                  style: const TextStyle(
-                    fontSize: 16,
-                  ),
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: chatHistory
+                      .map<Column>(
+                        (Map<String, String> entry) => Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              'User: ${entry['user']}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            Text(
+                              'Bot: ${entry['bot']}',
+                              style: const TextStyle(
+                                fontSize: 16,
+                              ),
+                            ),
+                            const Divider(),
+                          ],
+                        ),
+                      )
+                      .toList(),
                 );
               }),
             ),
@@ -78,12 +96,27 @@ class _MyHomePageState extends State<MyHomePage> {
                 });
               },
             ),
-            ElevatedButton(
-              onPressed: () {
-                //検索
-                callAPI();
-              },
-              child: const Text('検索'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  onPressed: () {
+                    //検索
+                    callAPI();
+                  },
+                  child: const Text('検索'),
+                ),
+                const SizedBox(width: 10),
+                ElevatedButton(
+                  onPressed: () {
+                    clearChatHistory();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                  ),
+                  child: const Text('履歴削除'),
+                ),
+              ],
             ),
           ],
         ),
@@ -92,6 +125,18 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void callAPI() async {
+    List<Map<String, String>> messages = chatHistory
+        .map((entry) => {
+              "role": "user",
+              "content": entry['user']!,
+            })
+        .toList();
+
+    messages.add({
+      "role": "user",
+      "content": searchText,
+    });
+
     final response = await http.post(
       Uri.parse('https://api.openai.com/v1/chat/completions'),
       headers: <String, String>{
@@ -100,12 +145,7 @@ class _MyHomePageState extends State<MyHomePage> {
       },
       body: jsonEncode(<String, dynamic>{
         "model": "gpt-3.5-turbo",
-        "messages": [
-          {
-            "role": "user",
-            "content": searchText,
-          }
-        ]
+        "messages": messages,
       }),
     );
     final body = response.bodyBytes;
@@ -115,7 +155,16 @@ class _MyHomePageState extends State<MyHomePage> {
     final content = choices[0]['message']['content'];
 
     setState(() {
-      _apiText = content;
+      chatHistory.add({
+        'user': searchText,
+        'bot': content,
+      });
+    });
+  }
+
+  void clearChatHistory() {
+    setState(() {
+      chatHistory.clear();
     });
   }
 }
