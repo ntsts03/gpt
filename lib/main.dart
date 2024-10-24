@@ -124,7 +124,7 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  void callAPI() async {
+ Future<void> callAPI() async {
     List<Map<String, String>> messages = chatHistory
         .map((entry) => {
               "role": "user",
